@@ -1,29 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Save, Eye, Clock, Globe, Tag, ChevronDown,
-  Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
-  Link2, Image, Code, Quote, AlignLeft, AlignCenter, AlignRight,
-  Upload, X, Calendar,
+  ArrowLeft, Save, Eye, ChevronDown, X, Image,
 } from "lucide-react";
-import { categories } from "@/lib/data";
+import AuthGuard from "@/components/auth-guard";
+import { useFirestoreCollection } from "@/lib/hooks";
+import { useToast } from "@/components/ui/toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import { collection, addDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-export default function NewArticlePage() {
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+function NewArticleContent() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { data: categories, loading: catsLoading } = useFirestoreCollection<Category>(
+    "categories",
+    [orderBy("name")]
+  );
+
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [content, setContent] = useState("");
+  const [featuredImage, setFeaturedImage] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [focusKeyword, setFocusKeyword] = useState("");
-  const [status, setStatus] = useState("Draft");
-  const [visibility, setVisibility] = useState("Public");
-  const [publishDate, setPublishDate] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
+  const [status, setStatus] = useState("draft");
+  const [saving, setSaving] = useState(false);
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
@@ -44,36 +59,66 @@ export default function NewArticlePage() {
     setTags(tags.filter((t) => t !== tag));
   };
 
+  const handleSave = async (publishStatus: string) => {
+    if (!title.trim()) {
+      toast("Title is required", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await addDoc(collection(db, "articles"), {
+        title: title.trim(),
+        slug: slug.trim() || title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        category,
+        tags,
+        content,
+        featuredImage,
+        metaTitle,
+        metaDescription,
+        focusKeyword,
+        status: publishStatus,
+        author: "Admin",
+        views: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast(publishStatus === "published" ? "Article published!" : "Draft saved!", "success");
+      router.push("/admin/articles");
+    } catch {
+      toast("Failed to save article", "error");
+    }
+    setSaving(false);
+  };
+
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link href="/admin" className="p-2 text-secondary-400 hover:text-secondary-700 hover:bg-secondary-100 rounded-lg transition-colors">
+          <Link href="/admin/articles" className="p-2 text-secondary-400 hover:text-secondary-700 hover:bg-secondary-100 rounded-lg transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-xl font-bold text-secondary-900">Create New Article</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="flex items-center gap-1.5 px-4 py-2 border border-secondary-200 rounded-lg text-sm font-medium text-secondary-700 hover:bg-secondary-50 transition-colors"
+            onClick={() => handleSave("draft")}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-2 border border-secondary-200 rounded-lg text-sm font-medium text-secondary-700 hover:bg-secondary-50 transition-colors disabled:opacity-50"
           >
-            <Eye className="w-4 h-4" /> Preview
-          </button>
-          <button className="flex items-center gap-1.5 px-4 py-2 border border-secondary-200 rounded-lg text-sm font-medium text-secondary-700 hover:bg-secondary-50 transition-colors">
             <Save className="w-4 h-4" /> Save Draft
           </button>
-          <button className="flex items-center gap-1.5 px-5 py-2 bg-primary-500 rounded-lg text-sm font-medium text-white hover:bg-primary-600 transition-colors">
-            Publish
+          <button
+            onClick={() => handleSave("published")}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-5 py-2 bg-primary-500 rounded-lg text-sm font-medium text-white hover:bg-primary-600 transition-colors disabled:opacity-50"
+          >
+            <Eye className="w-4 h-4" /> Publish
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Main Editor */}
         <div className="xl:col-span-2 space-y-5">
-          {/* Title & Slug */}
           <div className="bg-white rounded-xl border border-secondary-100 p-5 space-y-4">
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-1.5">Title</label>
@@ -102,11 +147,11 @@ export default function NewArticlePage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="appearance-none w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-lg text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm cursor-pointer"
+                    className="appearance-none w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-lg text-secondary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm cursor-pointer"
                   >
                     <option value="">Select category</option>
                     {categories.map((cat) => (
-                      <option key={cat.slug} value={cat.slug}>{cat.name}</option>
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400 pointer-events-none" />
@@ -136,61 +181,10 @@ export default function NewArticlePage() {
             </div>
           </div>
 
-          {/* Rich Text Editor */}
           <div className="bg-white rounded-xl border border-secondary-100 overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex items-center gap-1 px-4 py-2.5 border-b border-secondary-100 bg-secondary-50/50 flex-wrap">
-              <div className="relative">
-                <select className="appearance-none bg-white border border-secondary-200 rounded-md px-3 py-1.5 pr-7 text-xs font-medium text-secondary-700 focus:outline-none cursor-pointer">
-                  <option>Paragraph</option>
-                  <option>Heading 1</option>
-                  <option>Heading 2</option>
-                  <option>Heading 3</option>
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-secondary-400 pointer-events-none" />
-              </div>
-              <div className="w-px h-5 bg-secondary-200 mx-1" />
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <Bold className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <Italic className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <UnderlineIcon className="w-4 h-4" />
-              </button>
-              <div className="w-px h-5 bg-secondary-200 mx-1" />
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <List className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <ListOrdered className="w-4 h-4" />
-              </button>
-              <div className="w-px h-5 bg-secondary-200 mx-1" />
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <Link2 className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <Image className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <Code className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <Quote className="w-4 h-4" />
-              </button>
-              <div className="w-px h-5 bg-secondary-200 mx-1" />
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <AlignLeft className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <AlignCenter className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 text-secondary-500 hover:text-secondary-900 hover:bg-secondary-100 rounded-md transition-colors">
-                <AlignRight className="w-4 h-4" />
-              </button>
+            <div className="border-b border-secondary-100 bg-secondary-50/50 px-4 py-2.5">
+              <span className="text-sm font-medium text-secondary-700">Content</span>
             </div>
-            {/* Editor Area */}
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -200,61 +194,52 @@ export default function NewArticlePage() {
           </div>
         </div>
 
-        {/* Right Sidebar */}
         <div className="space-y-5">
-          {/* Publish */}
           <div className="bg-white rounded-xl border border-secondary-100 p-5">
             <h3 className="text-sm font-semibold text-secondary-900 mb-4">Publish</h3>
-            <div className="flex gap-2 mb-4">
-              <button className="flex-1 px-3 py-2 border border-secondary-200 rounded-lg text-sm font-medium text-secondary-700 hover:bg-secondary-50 transition-colors">
-                Save Draft
-              </button>
-              <button className="flex-1 px-3 py-2 border border-secondary-200 rounded-lg text-sm font-medium text-secondary-700 hover:bg-secondary-50 transition-colors">
-                Preview
-              </button>
-            </div>
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-secondary-500 flex items-center gap-1.5">
-                  <Globe className="w-4 h-4" /> Status:
-                </span>
+                <span className="text-secondary-500">Status:</span>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
                   className="text-secondary-700 font-medium bg-transparent border-0 focus:outline-none cursor-pointer"
                 >
-                  <option>Draft</option>
-                  <option>Published</option>
-                  <option>Pending Review</option>
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
                 </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-secondary-500 flex items-center gap-1.5">
-                  <Eye className="w-4 h-4" /> Visibility:
-                </span>
-                <select
-                  value={visibility}
-                  onChange={(e) => setVisibility(e.target.value)}
-                  className="text-secondary-700 font-medium bg-transparent border-0 focus:outline-none cursor-pointer"
-                >
-                  <option>Public</option>
-                  <option>Private</option>
-                  <option>Password Protected</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-secondary-500 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4" /> Publish:
-                </span>
-                <span className="text-secondary-700 font-medium">Immediately</span>
               </div>
             </div>
-            <button className="w-full mt-4 px-5 py-2.5 bg-primary-500 text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2">
-              Publish
-            </button>
           </div>
 
-          {/* SEO Settings */}
+          <div className="bg-white rounded-xl border border-secondary-100 p-5">
+            <h3 className="text-sm font-semibold text-secondary-900 mb-4">Featured Image</h3>
+            <div>
+              <label className="block text-xs font-medium text-secondary-600 mb-1.5">Image URL</label>
+              <input
+                type="url"
+                value={featuredImage}
+                onChange={(e) => setFeaturedImage(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="w-full px-3 py-2 bg-secondary-50 border border-secondary-200 rounded-lg text-sm text-secondary-900 placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            {featuredImage && (
+              <div className="mt-3 relative">
+                <img src={featuredImage} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
+                <button onClick={() => setFeaturedImage("")} className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-black/70">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {!featuredImage && (
+              <div className="mt-3 border-2 border-dashed border-secondary-200 rounded-lg p-6 text-center">
+                <Image className="w-8 h-8 text-secondary-300 mx-auto mb-2" />
+                <p className="text-xs text-secondary-400">Paste an image URL above</p>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-xl border border-secondary-100 p-5">
             <h3 className="text-sm font-semibold text-secondary-900 mb-4">SEO Settings</h3>
             <div className="space-y-4">
@@ -292,18 +277,16 @@ export default function NewArticlePage() {
               </div>
             </div>
           </div>
-
-          {/* Featured Image */}
-          <div className="bg-white rounded-xl border border-secondary-100 p-5">
-            <h3 className="text-sm font-semibold text-secondary-900 mb-4">Featured Image</h3>
-            <div className="border-2 border-dashed border-secondary-200 rounded-lg p-6 text-center hover:border-primary-400 transition-colors cursor-pointer">
-              <Upload className="w-8 h-8 text-secondary-300 mx-auto mb-2" />
-              <p className="text-sm text-secondary-500">Click to upload or drag & drop</p>
-              <p className="text-xs text-secondary-400 mt-1">PNG, JPG up to 5MB</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewArticlePage() {
+  return (
+    <AuthGuard>
+      <NewArticleContent />
+    </AuthGuard>
   );
 }

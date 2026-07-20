@@ -62,6 +62,7 @@ const config: Config = {
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "gradient-x": "gradient-x 15s ease infinite",
         "bounce-slow": "bounce 3s infinite",
+        shimmer: "shimmer 2s infinite",
       },
       keyframes: {
         fadeIn: {
@@ -83,6 +84,9 @@ const config: Config = {
         "gradient-x": {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
         },
       },
       backgroundImage: {

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { AuthProvider, useAuthContext } from "@/lib/auth-context";
+import { ToastProvider } from "@/components/ui/toast";
 import {
   LayoutDashboard, FileText, FolderOpen, Image, MessageSquare, Users,
   Mail, Globe, BarChart3, Link2, TrendingUp, SearchIcon, Settings,
@@ -10,7 +12,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
   {
     label: "Articles", icon: FileText, href: "/admin/articles",
     children: [
@@ -31,9 +33,14 @@ const navItems = [
   { label: "Settings", icon: Settings, href: "/admin/settings" },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminSidebar({
+  sidebarOpen,
+  setSidebarOpen,
+}: {
+  sidebarOpen: boolean;
+  setSidebarOpen: (v: boolean) => void;
+}) {
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(["Articles"]);
 
   const toggleExpand = (label: string) => {
@@ -43,16 +50,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex h-screen bg-secondary-50 overflow-hidden">
-      {/* Sidebar */}
+    <>
       <aside
         className={`${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 w-64 bg-secondary-900 text-white flex flex-col transition-transform duration-300`}
       >
-        {/* Logo */}
         <div className="p-5 border-b border-secondary-800">
-          <Link href="/admin" className="flex items-center gap-2.5">
+          <Link href="/admin/dashboard" className="flex items-center gap-2.5">
             <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
@@ -63,10 +68,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/admin/dashboard" && item.href !== "#" && pathname.startsWith(item.href));
             const isExpanded = expandedItems.includes(item.label);
             const hasChildren = item.children && item.children.length > 0;
 
@@ -98,6 +104,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                           <Link
                             key={child.href}
                             href={child.href}
+                            onClick={() => setSidebarOpen(false)}
                             className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                               pathname === child.href
                                 ? "bg-primary-500/10 text-primary-400"
@@ -113,6 +120,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 ) : (
                   <Link
                     href={item.href}
+                    onClick={() => setSidebarOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                       isActive
                         ? "bg-primary-500/10 text-primary-400"
@@ -128,67 +136,100 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* Footer */}
         <div className="p-4 border-t border-secondary-800">
-          <Link href="/" className="flex items-center gap-2 text-secondary-400 hover:text-white text-sm transition-colors">
+          <Link
+            href="/"
+            target="_blank"
+            className="flex items-center gap-2 text-secondary-400 hover:text-white text-sm transition-colors"
+          >
             <Globe className="w-4 h-4" />
             View Site
           </Link>
         </div>
       </aside>
 
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
+    </>
+  );
+}
 
-      {/* Main Content */}
+function AdminTopBar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
+  const { user } = useAuthContext();
+
+  return (
+    <header className="bg-white border-b border-secondary-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden p-2 text-secondary-500 hover:bg-secondary-100 rounded-lg"
+        >
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+        <h1 className="text-lg font-semibold text-secondary-900">Dashboard</h1>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="relative hidden sm:block">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="pl-9 pr-4 py-2 bg-secondary-50 border border-secondary-200 rounded-lg text-sm text-secondary-900 placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-56"
+          />
+        </div>
+        <button className="relative p-2 text-secondary-400 hover:bg-secondary-100 rounded-lg transition-colors">
+          <Bell className="w-5 h-5" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+        </button>
+        <div className="flex items-center gap-2.5 pl-3 border-l border-secondary-200">
+          <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center">
+            <span className="text-sm font-bold text-white">
+              {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || "S"}
+            </span>
+          </div>
+          <div className="hidden md:block">
+            <div className="text-sm font-medium text-secondary-900">
+              {user?.displayName || "Saikat Al Hasan"}
+            </div>
+            <div className="text-xs text-secondary-400">Admin</div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function AdminInnerLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isLoginPage = pathname === "/admin/login";
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex h-screen bg-secondary-50 overflow-hidden">
+      <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="bg-white border-b border-secondary-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 text-secondary-500 hover:bg-secondary-100 rounded-lg"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <h1 className="text-lg font-semibold text-secondary-900">Dashboard</h1>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative hidden sm:block">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-9 pr-4 py-2 bg-secondary-50 border border-secondary-200 rounded-lg text-sm text-secondary-900 placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-56"
-              />
-            </div>
-            <button className="relative p-2 text-secondary-400 hover:bg-secondary-100 rounded-lg transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
-            <div className="flex items-center gap-2.5 pl-3 border-l border-secondary-200">
-              <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center">
-                <span className="text-sm font-bold text-white">S</span>
-              </div>
-              <div className="hidden md:block">
-                <div className="text-sm font-medium text-secondary-900">Saikat Al Hasan</div>
-                <div className="text-xs text-secondary-400">Admin</div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <AdminTopBar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <ToastProvider>
+        <AdminInnerLayout>{children}</AdminInnerLayout>
+      </ToastProvider>
+    </AuthProvider>
   );
 }
