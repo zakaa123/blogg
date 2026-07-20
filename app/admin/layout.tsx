@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuthContext } from "@/lib/auth-context";
+import { useAuth } from "@/lib/hooks";
 import { ToastProvider } from "@/components/ui/toast";
 import {
   LayoutDashboard, FileText, FolderOpen, Image, MessageSquare, Users,
   Mail, Globe, BarChart3, Link2, TrendingUp, SearchIcon, Settings,
-  ChevronDown, ChevronRight, Menu, X, Brain, Bell, LogOut,
+  ChevronDown, ChevronRight, Menu, X, Brain, Bell, LogOut, Loader2,
 } from "lucide-react";
 
 const navItems = [
@@ -21,15 +22,15 @@ const navItems = [
     ],
   },
   { label: "Categories", icon: FolderOpen, href: "/admin/categories" },
-  { label: "Media Library", icon: Image, href: "#" },
+  { label: "Media Library", icon: Image, href: "/admin/media" },
   { label: "Comments", icon: MessageSquare, href: "/admin/comments" },
-  { label: "Users", icon: Users, href: "#" },
-  { label: "Newsletter", icon: Mail, href: "#" },
-  { label: "Pages", icon: Globe, href: "#" },
-  { label: "Ads Management", icon: BarChart3, href: "#" },
-  { label: "Affiliate Links", icon: Link2, href: "#" },
+  { label: "Users", icon: Users, href: "/admin/users" },
+  { label: "Newsletter", icon: Mail, href: "/admin/newsletter" },
+  { label: "Pages", icon: Globe, href: "/admin/pages" },
+  { label: "Ads Management", icon: BarChart3, href: "/admin/ads" },
+  { label: "Affiliate Links", icon: Link2, href: "/admin/affiliate" },
   { label: "Analytics", icon: TrendingUp, href: "#" },
-  { label: "SEO Settings", icon: SearchIcon, href: "#" },
+  { label: "SEO Settings", icon: SearchIcon, href: "/admin/seo" },
   { label: "Settings", icon: Settings, href: "/admin/settings" },
 ];
 
@@ -160,6 +161,13 @@ function AdminSidebar({
 
 function AdminTopBar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; setSidebarOpen: (v: boolean) => void }) {
   const { user } = useAuthContext();
+  const { logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/admin/login");
+  };
 
   return (
     <header className="bg-white border-b border-secondary-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
@@ -198,6 +206,13 @@ function AdminTopBar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; se
             </div>
             <div className="text-xs text-secondary-400">Admin</div>
           </div>
+          <button 
+            onClick={handleLogout}
+            className="ml-2 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2"
+            title="Sign Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>
@@ -206,8 +221,28 @@ function AdminTopBar({ sidebarOpen, setSidebarOpen }: { sidebarOpen: boolean; se
 
 function AdminInnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useAuthContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isLoginPage = pathname === "/admin/login";
+
+  useEffect(() => {
+    if (!loading && !user && !isLoginPage) {
+      router.push("/admin/login");
+    }
+  }, [user, loading, isLoginPage, router]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-secondary-50">
+        <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user && !isLoginPage) {
+    return null;
+  }
 
   if (isLoginPage) {
     return <>{children}</>;

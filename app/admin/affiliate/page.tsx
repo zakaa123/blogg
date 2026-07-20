@@ -27,7 +27,7 @@ interface AffiliateLink {
   createdAt: { toDate: () => Date } | Date | null;
 }
 
-const emptyForm = { productName: "", description: "", affiliateUrl: "", category: "", commission: "", status: "active" as const };
+const emptyForm: { productName: string; description: string; affiliateUrl: string; category: string; commission: string; status: "active" | "inactive" } = { productName: "", description: "", affiliateUrl: "", category: "", commission: "", status: "active" };
 
 export default function AffiliatePage() {
   const [links, setLinks] = useState<AffiliateLink[]>([]);
@@ -39,12 +39,18 @@ export default function AffiliatePage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let mounted = true;
     const q = query(collection(db, "affiliate_links"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
+      if (!mounted) return;
       setLinks(snap.docs.map((d) => ({ id: d.id, ...d.data() } as AffiliateLink)));
       setLoading(false);
+    }, (err) => {
+      const code = (err as { code?: string })?.code || "";
+      if (!mounted || code === "cancelled" || code === "aborted") return;
+      setLoading(false);
     });
-    return () => unsub();
+    return () => { mounted = false; unsub(); };
   }, []);
 
   const filtered = links.filter((l) => l.productName.toLowerCase().includes(search.toLowerCase()));

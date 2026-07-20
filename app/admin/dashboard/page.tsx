@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { where, orderBy, limit as fsLimit } from "firebase/firestore";
 import AuthGuard from "@/components/auth-guard";
 import { useFirestoreCollection, useFirestoreCount } from "@/lib/hooks";
+import { useToast } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { seedFirestore } from "@/lib/seed";
 import {
   FileText, FolderOpen, Users, Mail, MessageSquare, Eye, Clock,
-  Plus, TrendingUp, ChevronDown,
+  Plus, TrendingUp, ChevronDown, Database,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -54,6 +56,8 @@ function StatCardSkeleton() {
 function DashboardContent() {
   const now = useMemo(() => Math.floor(Date.now() / 1000), []);
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60;
+  const { toast } = useToast();
+  const [seeding, setSeeding] = useState(false);
 
   const { count: totalArticles, loading: loadingArticles } = useFirestoreCount("articles");
   const { count: totalCategories, loading: loadingCategories } = useFirestoreCount("categories");
@@ -145,6 +149,20 @@ function DashboardContent() {
     });
   }
 
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      const result = await seedFirestore();
+      toast(`Seeded ${result.articles} articles and ${result.categories} categories`, "success");
+      window.location.reload();
+    } catch {
+      toast("Failed to seed database", "error");
+    }
+    setSeeding(false);
+  };
+
+  const showSeedBanner = !loadingStats && totalArticles === 0;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -159,6 +177,36 @@ function DashboardContent() {
           <Plus className="w-4 h-4" /> New Article
         </Link>
       </div>
+
+      {showSeedBanner && (
+        <div className="bg-gradient-to-r from-primary-50 to-accent-50 border border-primary-200 rounded-xl p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+              <Database className="w-5 h-5 text-primary-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-secondary-900">No data found</p>
+              <p className="text-xs text-secondary-500">Import your existing articles and categories into Firestore.</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSeed}
+            disabled={seeding}
+            className="flex items-center gap-1.5 bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50"
+          >
+            {seeding ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Database className="w-4 h-4" /> Import Data
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {loadingStats ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

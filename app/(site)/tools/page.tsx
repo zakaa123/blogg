@@ -23,12 +23,7 @@ export default function ToolsPage() {
         </p>
       </div>
 
-      {/* Affiliate Disclosure */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8">
-        <p className="text-sm text-amber-800">
-          <strong>Affiliate Disclosure:</strong> Some of the links on this page are affiliate links. This means we may earn a commission if you make a purchase through our links, at no extra cost to you. This helps us keep our content free and continue providing valuable reviews.
-        </p>
-      </div>
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {affiliateProducts.map((product) => (

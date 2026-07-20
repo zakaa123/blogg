@@ -45,12 +45,18 @@ export default function NotificationsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let mounted = true;
     const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
+      if (!mounted) return;
       setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Notification)));
       setLoading(false);
+    }, (err) => {
+      const code = (err as { code?: string })?.code || "";
+      if (!mounted || code === "cancelled" || code === "aborted") return;
+      setLoading(false);
     });
-    return () => unsub();
+    return () => { mounted = false; unsub(); };
   }, []);
 
   const filtered = filter === "unread" ? notifications.filter((n) => !n.read) : notifications;

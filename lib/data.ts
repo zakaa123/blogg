@@ -122,7 +122,7 @@ export const categories: Category[] = [
     description: "Latest AI tools, news, and guides for ChatGPT, Claude, Gemini, and more",
     icon: "Brain",
     color: "#2563EB",
-    articleCount: 150,
+    articleCount: 0,
   },
   {
     name: "Programming",
@@ -130,7 +130,7 @@ export const categories: Category[] = [
     description: "Tutorials and guides for React, Next.js, Node.js, Python, and more",
     icon: "Code",
     color: "#14B8A6",
-    articleCount: 200,
+    articleCount: 0,
   },
   {
     name: "Software Reviews",
@@ -138,7 +138,7 @@ export const categories: Category[] = [
     description: "Honest reviews of the best VPN, hosting, CRM, and productivity software",
     icon: "Star",
     color: "#F59E0B",
-    articleCount: 120,
+    articleCount: 0,
   },
   {
     name: "Web Development",
@@ -146,7 +146,7 @@ export const categories: Category[] = [
     description: "Complete web development guides and tutorials for modern developers",
     icon: "Globe",
     color: "#8B5CF6",
-    articleCount: 180,
+    articleCount: 0,
   },
   {
     name: "SEO & Marketing",
@@ -154,7 +154,7 @@ export const categories: Category[] = [
     description: "SEO strategies, content marketing, and growth hacking guides",
     icon: "TrendingUp",
     color: "#EC4899",
-    articleCount: 80,
+    articleCount: 0,
   },
   {
     name: "Cloud & Hosting",
@@ -162,7 +162,7 @@ export const categories: Category[] = [
     description: "Best cloud services, hosting providers, and DevOps guides",
     icon: "Cloud",
     color: "#06B6D4",
-    articleCount: 70,
+    articleCount: 0,
   },
   {
     name: "Guides & Tutorials",
@@ -170,7 +170,7 @@ export const categories: Category[] = [
     description: "Step-by-step tutorials and comprehensive how-to guides",
     icon: "BookOpen",
     color: "#10B981",
-    articleCount: 250,
+    articleCount: 0,
   },
   {
     name: "News & Updates",
@@ -178,7 +178,7 @@ export const categories: Category[] = [
     description: "Latest technology news, product launches, and industry updates",
     icon: "Newspaper",
     color: "#EF4444",
-    articleCount: 100,
+    articleCount: 0,
   },
 ];
 

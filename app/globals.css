@@ -48,6 +48,9 @@
   --animate-slide-in-left: slideInLeft 0.5s ease-out;
   --animate-float: float 6s ease-in-out infinite;
   --animate-gradient-x: gradient-x 15s ease infinite;
+
+  --background-image-hero-gradient: linear-gradient(135deg, #111827 0%, #1E3A8A 50%, #2563EB 100%);
+  --background-image-card-gradient: linear-gradient(135deg, #EFF6FF 0%, #F0FDFA 100%);
 }
 
 @keyframes fadeIn {

@@ -14,6 +14,7 @@ import {
   collection, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface Article {
   id: string;
@@ -215,7 +216,11 @@ function EditArticleContent() {
             <div className="border-b border-secondary-100 bg-secondary-50/50 px-4 py-2.5">
               <span className="text-sm font-medium text-secondary-700">Content</span>
             </div>
-            <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write your article content here..." className="w-full px-5 py-4 min-h-[400px] text-secondary-700 placeholder-secondary-400 focus:outline-none resize-y leading-relaxed" />
+            <RichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Write your article content here..."
+            />
           </div>
         </div>
 

@@ -32,14 +32,20 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let mounted = true;
     const ref = doc(db, "settings", "general");
     const unsub = onSnapshot(ref, (snap) => {
+      if (!mounted) return;
       if (snap.exists()) {
         setSettings({ ...defaultSettings, ...snap.data() } as Settings);
       }
       setLoading(false);
-    }, () => setLoading(false));
-    return () => unsub();
+    }, (err) => {
+      const code = (err as { code?: string })?.code || "";
+      if (!mounted || code === "cancelled" || code === "aborted") return;
+      setLoading(false);
+    });
+    return () => { mounted = false; unsub(); };
   }, []);
 
   const handleSave = async () => {

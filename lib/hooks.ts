@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -12,9 +12,6 @@ import {
   doc,
   onSnapshot,
   query,
-  where,
-  orderBy,
-  limit,
   type QueryConstraint,
   type DocumentData,
 } from "firebase/firestore";
@@ -86,6 +83,24 @@ interface FirestoreCollectionState<T> {
   error: string | null;
 }
 
+function serializeConstraints(constraints: QueryConstraint[]): string {
+  try {
+    return constraints.map((c) => {
+      if ("_field" in c && "_op" in c) return `w:${String((c as Record<string, unknown>)._field)}:${(c as Record<string, unknown>)._op}:${JSON.stringify((c as Record<string, unknown>)._value)}`;
+      if ("_field" in c && "_direction" in c) return `o:${String((c as Record<string, unknown>)._field)}:${(c as Record<string, unknown>)._direction}`;
+      if ("_limit" in c) return `l:${(c as Record<string, unknown>)._limit}`;
+      return String(c.type);
+    }).join("|");
+  } catch {
+    return String(constraints.length);
+  }
+}
+
+function isCancelledError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code || "";
+  return code === "cancelled" || code === "aborted";
+}
+
 export function useFirestoreCollection<T extends DocumentData>(
   collectionName: string,
   queryConstraints: QueryConstraint[] = []
@@ -93,8 +108,11 @@ export function useFirestoreCollection<T extends DocumentData>(
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const constraintsKey = serializeConstraints(queryConstraints);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -103,21 +121,27 @@ export function useFirestoreCollection<T extends DocumentData>(
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const results = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        if (!mountedRef.current) return;
+        const results = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
         })) as unknown as T[];
         setData(results);
         setLoading(false);
       },
       (err) => {
+        if (!mountedRef.current || isCancelledError(err)) return;
         setError(err.message);
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
-  }, [collectionName, queryConstraints]);
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectionName, constraintsKey]);
 
   return { data, loading, error };
 }
@@ -135,8 +159,11 @@ export function useFirestoreDoc<T extends DocumentData>(
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     if (!docId) {
       setLoading(false);
       return;
@@ -150,6 +177,7 @@ export function useFirestoreDoc<T extends DocumentData>(
     const unsubscribe = onSnapshot(
       docRef,
       (snapshot) => {
+        if (!mountedRef.current) return;
         if (snapshot.exists()) {
           setData({ id: snapshot.id, ...snapshot.data() } as unknown as T);
         } else {
@@ -158,12 +186,16 @@ export function useFirestoreDoc<T extends DocumentData>(
         setLoading(false);
       },
       (err) => {
+        if (!mountedRef.current || isCancelledError(err)) return;
         setError(err.message);
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+    };
   }, [collectionName, docId]);
 
   return { data, loading, error };
@@ -182,8 +214,11 @@ export function useFirestoreCount(
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const constraintsKey = serializeConstraints(queryConstraints);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -192,17 +227,23 @@ export function useFirestoreCount(
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        if (!mountedRef.current) return;
         setCount(snapshot.size);
         setLoading(false);
       },
       (err) => {
+        if (!mountedRef.current || isCancelledError(err)) return;
         setError(err.message);
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
-  }, [collectionName, queryConstraints]);
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collectionName, constraintsKey]);
 
   return { count, loading, error };
 }
